@@ -12,16 +12,18 @@ struct DYNACON_node{
     int *V;
     int l;
     int T;
+    int first_in_window;
     double objective;
 };
 
-struct DYNACON_node init_node(int i, int *A, struct DYNACON_node *source, int n, int m, double lambda){
+struct DYNACON_node init_node(int i, int *A, struct DYNACON_node *source, int n, int m, double *omega, int *first_in_window, double lambda){
     struct DYNACON_node node;
     node.predecessor = source;
-    node.l = (i>-1 & i<n)? 1:0;
+    node.l = (i>-1 & i<n)? omega[i]:0;
     node.T = node.l;
     node.i = i;
     node.A = (i>-1 & i<n)? &(A[m*i]):NULL;
+    node.first_in_window = (i>-1 & i<n)? first_in_window[i]:n;
     node.V = calloc(m, sizeof(int));
     if (node.V == NULL) {
         perror("Error in calloc.\n");
@@ -33,7 +35,7 @@ struct DYNACON_node init_node(int i, int *A, struct DYNACON_node *source, int n,
             count -= node.V[j];
         }
     }
-    node.objective = (i>-1 & i<n)? node.T + count*lambda : node.T+m*lambda*10;
+    node.objective = (i>-1 & i<n)? node.T + count*lambda : INT_MAX;
     return node;
 }
 
@@ -70,17 +72,20 @@ void compare_predecessors(struct DYNACON_node *node, struct DYNACON_node *p, int
     }
 }
 
-int DYNACON_SD(int n, int m, int *A, double lambda, int *I, double *objective) {
+int DYNACON_SD(int n, int m, int *A, double *omega, double lambda, int *first_in_window, int *I, double *objective) {
     struct DYNACON_node *nodes = malloc((n + 2) * sizeof(struct DYNACON_node));
     if (nodes == NULL) {
         perror("Error in malloc.\n");
         return 1;
     }
-    nodes[0] = init_node(-1, A, NULL, n, m, lambda);
+    nodes[0] = init_node(-1, A, NULL, n, m, omega, first_in_window, lambda);
 
     for (int i = 0; i < n + 1; i++) {
-        nodes[i+1] = init_node(i, A, &nodes[0], n, m, lambda);
-        for (int j = 0; j < i; j++) {
+        nodes[i+1] = init_node(i, A, &nodes[0], n, m, omega, first_in_window, lambda);
+        for (int j = 0; j < nodes[i+1].first_in_window; j++) {
+            if (i==n & j==0){
+                continue;
+            }
             compare_predecessors(&nodes[i+1], &nodes[j+1], m, lambda);
         }
     }
